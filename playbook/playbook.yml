@@ -1,0 +1,40 @@
+---
+- name: Configure host
+  hosts: #host's ip (or all)
+
+  tasks:
+    - name: Create new user 'cloudru' with password 'cloudpass'
+      user:
+        name: cloudru
+        password: "{{ 'cloudpass' | password_hash('sha512') }}"
+        state: present
+
+    - name: Allow ssh login with key authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        line: "{{ item }}"
+        insertafter: EOF
+      loop:
+        - "PubkeyAuthentication yes"
+        - "AuthorizedKeysFile  .ssh/authorized_keys"
+        - "PasswordAuthentication no"
+      notify: restart sshd
+
+    - name: Disable ssh login for root
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: "PermitRootLogin no"
+        state: present
+      notify: restart sshd
+
+    - name: Copy public key for user 'cloudru'
+      authorized_key:
+        user: cloudru
+        state: present
+        key: "{{ lookup('file', '/path/to/public_key.pub') }}"
+  handlers:
+    - name: restart sshd
+      service:
+        name: sshd
+        state: restarted
