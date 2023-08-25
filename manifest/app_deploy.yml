@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloud_app
+  namespace: py_app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: cloud_app
+  template:
+    metadata:
+      labels:
+        app: cloud_app
+    spec:
+      containers:
+        - name: cloud_app
+          image: cloud_app:latest
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: "1"
+            requests:
+              memory: 256Mi
+              cpu: "0.2"
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          env:
+            - name: UUID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloud_app-service
+  namespace: py_app
+spec:
+  selector:
+    app: cloud_app
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
